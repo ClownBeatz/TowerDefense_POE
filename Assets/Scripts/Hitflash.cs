@@ -1,7 +1,7 @@
-// HitFlash.cs
 using System.Collections;
 using UnityEngine;
 
+/// <summary>Flashes a unit when it takes damage.</summary>
 public class HitFlash : MonoBehaviour
 {
     public Color flashColor = Color.white;

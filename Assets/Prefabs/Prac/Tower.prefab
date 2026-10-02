@@ -124,12 +124,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2c7617d1ed078d14f8a2b706b4d2719f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 100
+  maxHealth: 250
   attackRange: 8
-  damage: 10
-  attacksPerSecond: 1
+  damage: 15
+  attacksPerSecond: 1.2
   projectilePrefab: {fileID: 4914687168816953391, guid: 8ea0176644a42c84da40465832a38d77, type: 3}
   heightOffset: 1
+  healthBarHeight: 1.6
 --- !u!114 &3312109803873066774
 MonoBehaviour:
   m_ObjectHideFlags: 0

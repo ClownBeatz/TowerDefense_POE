@@ -1,19 +1,18 @@
-// WorldHealthBar.cs
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>Health bar above a unit.</summary>
 [RequireComponent(typeof(Canvas))]
 public class WorldHealthBar : MonoBehaviour
 {
     public Vector3 offset = new Vector3(0f, 1.3f, 0f);
-    public Vector2 size = new Vector2(1f, 0.18f);
+    public Vector2 size = new Vector2(1.2f, 0.2f);
     public Color borderColor = new Color(0f, 0f, 0f, 0.9f);
     public Color backgroundColor = new Color(0.15f, 0.15f, 0.15f, 0.9f);
-    public Color highHealthColor = new Color(0.3f, 0.95f, 0.35f);
-    public Color lowHealthColor = new Color(0.95f, 0.25f, 0.2f);
+    public Color chipColor = new Color(1f, 0.9f, 0.6f);
 
     private IDamageable target;
-    private Image fillImage;
+    private HealthBarFill bar;
     private Camera cam;
 
     public void Initialize(IDamageable damageable)
@@ -37,36 +36,42 @@ public class WorldHealthBar : MonoBehaviour
         if (cam != null)
             transform.rotation = cam.transform.rotation;
 
-        GameObject border = new GameObject("Border", typeof(Image));
-        border.transform.SetParent(transform, false);
-        border.GetComponent<Image>().color = borderColor;
-        RectTransform borderRect = border.GetComponent<RectTransform>();
-        borderRect.anchorMin = Vector2.zero;
-        borderRect.anchorMax = Vector2.one;
-        borderRect.offsetMin = new Vector2(-4f, -4f);
-        borderRect.offsetMax = new Vector2(4f, 4f);
+        Image border = CreateLayer("Border", borderColor);
+        border.rectTransform.offsetMin = new Vector2(-5f, -5f);
+        border.rectTransform.offsetMax = new Vector2(5f, 5f);
 
-        GameObject background = new GameObject("Background", typeof(Image));
-        background.transform.SetParent(transform, false);
-        background.GetComponent<Image>().color = backgroundColor;
-        StretchToFill(background.GetComponent<RectTransform>());
+        CreateLayer("Background", backgroundColor);
 
-        GameObject fill = new GameObject("Fill", typeof(Image));
-        fill.transform.SetParent(transform, false);
-        fillImage = fill.GetComponent<Image>();
-        fillImage.type = Image.Type.Filled;
-        fillImage.fillMethod = Image.FillMethod.Horizontal;
-        StretchToFill(fill.GetComponent<RectTransform>());
+        bar = gameObject.AddComponent<HealthBarFill>();
+        bar.chip = CreateLayer("Chip", chipColor);
+        bar.chip.type = Image.Type.Filled;
+        bar.chip.fillMethod = Image.FillMethod.Horizontal;
+        bar.fill = CreateLayer("Fill", Color.white);
+        bar.fill.type = Image.Type.Filled;
+        bar.fill.fillMethod = Image.FillMethod.Horizontal;
 
-        UpdateVisuals();
+        bar.SetValue(CurrentPercent(), true);
     }
 
-    private void StretchToFill(RectTransform rect)
+    private Image CreateLayer(string layerName, Color color)
     {
+        GameObject layer = new GameObject(layerName, typeof(Image));
+        layer.transform.SetParent(transform, false);
+
+        Image image = layer.GetComponent<Image>();
+        image.color = color;
+
+        RectTransform rect = image.rectTransform;
         rect.anchorMin = Vector2.zero;
         rect.anchorMax = Vector2.one;
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
+        return image;
+    }
+
+    private float CurrentPercent()
+    {
+        return target.MaxHealth > 0f ? target.CurrentHealth / target.MaxHealth : 0f;
     }
 
     private void LateUpdate()
@@ -79,13 +84,6 @@ public class WorldHealthBar : MonoBehaviour
         if (cam != null)
             transform.rotation = cam.transform.rotation;
 
-        UpdateVisuals();
-    }
-
-    private void UpdateVisuals()
-    {
-        float pct = target.MaxHealth > 0f ? target.CurrentHealth / target.MaxHealth : 0f;
-        fillImage.fillAmount = pct;
-        fillImage.color = Color.Lerp(lowHealthColor, highHealthColor, pct);
+        bar.SetValue(CurrentPercent());
     }
 }

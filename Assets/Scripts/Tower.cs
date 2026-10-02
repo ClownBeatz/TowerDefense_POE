@@ -1,7 +1,7 @@
-// Tower.cs
 using System;
 using UnityEngine;
 
+/// <summary>Central tower that shoots enemies.</summary>
 public class Tower : MonoBehaviour, IDamageable
 {
     [Header("Health")]
@@ -15,6 +15,7 @@ public class Tower : MonoBehaviour, IDamageable
 
     [Header("Positioning")]
     public float heightOffset = 1f;
+    public float healthBarHeight = 1.6f;
 
     public static event Action OnTowerDestroyed;
     public static event Action<float, float> OnTowerHealthChanged;
@@ -30,6 +31,13 @@ public class Tower : MonoBehaviour, IDamageable
     {
         currentHealth = maxHealth;
         transform.position += Vector3.up * heightOffset;
+        SpawnHealthBar();
+    }
+
+    private void Start()
+    {
+        // Lets the HUD and the player tracker know the new tower's health straight away.
+        OnTowerHealthChanged?.Invoke(currentHealth, maxHealth);
     }
 
     private void Update()
@@ -48,26 +56,7 @@ public class Tower : MonoBehaviour, IDamageable
 
     private Collider FindClosestEnemy()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, attackRange);
-        Collider closest = null;
-        float closestDist = Mathf.Infinity;
-
-        foreach (Collider hit in hits)
-        {
-            if (!hit.CompareTag("Enemy")) continue;
-
-            IDamageable damageable = hit.GetComponent<IDamageable>();
-            if (damageable == null || damageable.IsDead) continue;
-
-            float dist = Vector3.Distance(transform.position, hit.transform.position);
-            if (dist < closestDist)
-            {
-                closestDist = dist;
-                closest = hit;
-            }
-        }
-
-        return closest;
+        return Targeting.FindClosest(transform.position, attackRange, "Enemy");
     }
 
     private void FireAt(Collider targetCollider)
@@ -94,6 +83,17 @@ public class Tower : MonoBehaviour, IDamageable
 
         if (IsDead)
             OnTowerDestroyed?.Invoke();
+    }
+
+    private void SpawnHealthBar()
+    {
+        GameObject barObject = new GameObject("HealthBar");
+        barObject.transform.SetParent(transform);
+        WorldHealthBar bar = barObject.AddComponent<WorldHealthBar>();
+        bar.offset = new Vector3(0f, healthBarHeight, 0f);
+        bar.size = new Vector2(2f, 0.3f);
+        bar.borderColor = new Color(0.95f, 0.75f, 0.2f);
+        bar.Initialize(this);
     }
 
     private void OnDrawGizmosSelected()

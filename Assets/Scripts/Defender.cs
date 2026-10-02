@@ -1,10 +1,20 @@
-// Defender.cs
+using System;
 using UnityEngine;
 
+/// <summary>Base defender that shoots enemies in range.</summary>
 public class Defender : MonoBehaviour, IDamageable
 {
+    [Header("Shop")]
+    public DefenderType type = DefenderType.Gunner;
+    public string displayName = "Gunner";
+    public int cost = 20;
+    public string description = "Fast single-target shots";
+    public Sprite icon;
+    public Color accentColor = new Color(0.2f, 0.5f, 1f);
+
     [Header("Health")]
     public float maxHealth = 40f;
+    public float healthBarHeight = 1.3f;
 
     [Header("Attack")]
     public float attackRange = 6f;
@@ -15,6 +25,8 @@ public class Defender : MonoBehaviour, IDamageable
     [Header("Positioning")]
     public float heightOffset = 1f;
 
+    public static event Action<Defender> OnDefenderDestroyed;
+
     private float currentHealth;
     private float attackCooldown;
 
@@ -22,54 +34,35 @@ public class Defender : MonoBehaviour, IDamageable
     public float MaxHealth => maxHealth;
     public bool IsDead => currentHealth <= 0f;
 
-    private void Awake()
+    protected virtual void Awake()
     {
         currentHealth = maxHealth;
         transform.position += Vector3.up * heightOffset;
         SpawnHealthBar();
     }
 
-    private void Update()
+    protected virtual void Update()
     {
         if (IsDead) return;
 
         attackCooldown -= Time.deltaTime;
         if (attackCooldown > 0f) return;
 
-        Collider target = FindClosestEnemy();
+        Collider target = FindTarget();
         if (target == null) return;
 
-        FireAt(target);
+        Attack(target);
         attackCooldown = 1f / attacksPerSecond;
     }
 
-    private Collider FindClosestEnemy()
+    protected virtual Collider FindTarget()
     {
-        Collider[] hits = Physics.OverlapSphere(transform.position, attackRange);
-        Collider closest = null;
-        float closestDist = Mathf.Infinity;
-
-        foreach (Collider hit in hits)
-        {
-            if (!hit.CompareTag("Enemy")) continue;
-
-            IDamageable damageable = hit.GetComponent<IDamageable>();
-            if (damageable == null || damageable.IsDead) continue;
-
-            float dist = Vector3.Distance(transform.position, hit.transform.position);
-            if (dist < closestDist)
-            {
-                closestDist = dist;
-                closest = hit;
-            }
-        }
-
-        return closest;
+        return Targeting.FindClosest(transform.position, attackRange, "Enemy");
     }
 
-    private void FireAt(Collider targetCollider)
+    protected virtual void Attack(Collider target)
     {
-        IDamageable damageable = targetCollider.GetComponent<IDamageable>();
+        IDamageable damageable = target.GetComponent<IDamageable>();
 
         if (projectilePrefab == null)
         {
@@ -78,7 +71,7 @@ public class Defender : MonoBehaviour, IDamageable
         }
 
         GameObject projectileObject = Instantiate(projectilePrefab, transform.position, Quaternion.identity);
-        projectileObject.GetComponent<Projectile>()?.Launch(targetCollider.transform, damageable, damage);
+        projectileObject.GetComponent<Projectile>()?.Launch(target.transform, damageable, damage);
     }
 
     public void TakeDamage(float amount)
@@ -89,7 +82,10 @@ public class Defender : MonoBehaviour, IDamageable
         GetComponent<HitFlash>()?.Flash();
 
         if (IsDead)
+        {
+            OnDefenderDestroyed?.Invoke(this);
             Destroy(gameObject);
+        }
     }
 
     private void SpawnHealthBar()
@@ -97,6 +93,8 @@ public class Defender : MonoBehaviour, IDamageable
         GameObject barObject = new GameObject("HealthBar");
         barObject.transform.SetParent(transform);
         WorldHealthBar bar = barObject.AddComponent<WorldHealthBar>();
+        bar.offset = new Vector3(0f, healthBarHeight, 0f);
+        bar.borderColor = new Color(0.1f, 0.35f, 0.85f);
         bar.Initialize(this);
     }
 

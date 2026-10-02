@@ -1,7 +1,7 @@
-// TerrainGenerator.cs
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>Generates the terrain and paths.</summary>
 public class TerrainGenerator : MonoBehaviour
 {
     [Header("Blocks")]
@@ -33,6 +33,18 @@ public class TerrainGenerator : MonoBehaviour
     public List<List<Vector3>> Paths { get; private set; }
     public List<Vector3> BuildableSpots { get; private set; }
     public Dictionary<Vector3, GameObject> BuildableBlocks { get; private set; }
+
+    // World-space box around every block, used by the camera to frame the map.
+    public Bounds MapBounds
+    {
+        get
+        {
+            float span = (gridSize - 1) * gridOffset;
+            Vector3 centre = new Vector3(span * 0.5f, noiseHeight * 0.5f, span * 0.5f);
+            Vector3 size = new Vector3(span + gridOffset, noiseHeight + 1f, span + gridOffset);
+            return new Bounds(centre, size);
+        }
+    }
 
     private enum CellType { Grass, Path, Tower }
 

@@ -1,4 +1,4 @@
-// IDamageable.cs
+/// <summary>Anything that can take damage.</summary>
 public interface IDamageable
 {
     float CurrentHealth { get; }

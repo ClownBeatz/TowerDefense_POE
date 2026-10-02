@@ -123,11 +123,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e51b0f5fc87bf1246b0357d971fb085a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHealth: 30
-  moveSpeed: 3
+  type: 0
+  reward: 12
+  maxHealth: 40
+  healthBarHeight: 1.3
+  moveSpeed: 2.5
   waypointTolerance: 0.3
-  attackRange: 1.5
-  damage: 8
+  slowResistance: 0
+  attackRange: 4.5
+  damage: 6
   attacksPerSecond: 1
   projectilePrefab: {fileID: 4914687168816953391, guid: 8ea0176644a42c84da40465832a38d77, type: 3}
   heightOffset: 0.5

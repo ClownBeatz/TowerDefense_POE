@@ -1,6 +1,6 @@
-// Projectile.cs
 using UnityEngine;
 
+/// <summary>Flies to a target and damages it.</summary>
 public class Projectile : MonoBehaviour
 {
     public float speed = 18f;

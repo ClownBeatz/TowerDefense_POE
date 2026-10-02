@@ -1,12 +1,14 @@
-// DefenderPlacer.cs
+using System;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
+/// <summary>Places defenders on buildable spots.</summary>
 public class DefenderPlacer : MonoBehaviour
 {
     public GameManager gameManager;
     public TerrainGenerator terrainGenerator;
-    public GameObject defenderPrefab;
-    public int defenderCost = 20;
+    public List<Defender> defenderPrefabs = new List<Defender>();
     public float placementRadius = 1.5f;
 
     [Header("Tile Highlight")]
@@ -17,20 +19,39 @@ public class DefenderPlacer : MonoBehaviour
     public float rangeRingHeight = 2f;
     public int rangeRingSegments = 48;
 
+    public event Action<Defender> OnSelectionChanged;
+
     private Renderer highlightedRenderer;
     private Color highlightedOriginalColor;
     private LineRenderer rangeRing;
-    private float defenderRange;
+    private readonly Dictionary<Defender, Vector3> placedSpots = new Dictionary<Defender, Vector3>();
+
+    public int SelectedIndex { get; private set; }
+    public Defender Selected => defenderPrefabs.Count > 0 ? defenderPrefabs[SelectedIndex] : null;
 
     private void Awake()
     {
-        if (defenderPrefab != null)
-        {
-            Defender d = defenderPrefab.GetComponent<Defender>();
-            if (d != null) defenderRange = d.attackRange;
-        }
-
         BuildRangeRing();
+    }
+
+    private void OnEnable()
+    {
+        Defender.OnDefenderDestroyed += FreeSpot;
+        GameManager.OnGameRestarted += placedSpots.Clear;
+    }
+
+    private void OnDisable()
+    {
+        Defender.OnDefenderDestroyed -= FreeSpot;
+        GameManager.OnGameRestarted -= placedSpots.Clear;
+    }
+
+    public void SelectDefender(int index)
+    {
+        if (index < 0 || index >= defenderPrefabs.Count) return;
+
+        SelectedIndex = index;
+        OnSelectionChanged?.Invoke(Selected);
     }
 
     private void BuildRangeRing()
@@ -49,17 +70,32 @@ public class DefenderPlacer : MonoBehaviour
 
     private void Update()
     {
+        HandleHotkeys();
         UpdateHoverPreview();
 
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0) && !IsPointerOverUI())
             TryPlaceDefender();
+    }
+
+    private void HandleHotkeys()
+    {
+        for (int i = 0; i < defenderPrefabs.Count && i < 9; i++)
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1 + i))
+                SelectDefender(i);
+        }
+    }
+
+    private static bool IsPointerOverUI()
+    {
+        return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
     }
 
     private void UpdateHoverPreview()
     {
         ClearHighlight();
 
-        if (Camera.main == null)
+        if (Camera.main == null || Selected == null || IsPointerOverUI())
         {
             rangeRing.gameObject.SetActive(false);
             return;
@@ -73,7 +109,7 @@ public class DefenderPlacer : MonoBehaviour
             return;
         }
 
-        bool affordable = gameManager.CanAfford(defenderCost);
+        bool affordable = gameManager.CanAfford(Selected.cost);
 
         if (terrainGenerator.BuildableBlocks.TryGetValue(spot, out GameObject block))
         {
@@ -85,10 +121,10 @@ public class DefenderPlacer : MonoBehaviour
             }
         }
 
-        DrawRing(spot);
+        DrawRing(spot, Selected.attackRange);
     }
 
-    private void DrawRing(Vector3 center)
+    private void DrawRing(Vector3 center, float radius)
     {
         int segments = Mathf.Max(rangeRingSegments, 3);
 
@@ -100,7 +136,7 @@ public class DefenderPlacer : MonoBehaviour
         for (int i = 0; i < segments; i++)
         {
             float angle = i * Mathf.PI * 2f / segments;
-            Vector3 point = new Vector3(center.x + Mathf.Cos(angle) * defenderRange, ringY, center.z + Mathf.Sin(angle) * defenderRange);
+            Vector3 point = new Vector3(center.x + Mathf.Cos(angle) * radius, ringY, center.z + Mathf.Sin(angle) * radius);
             rangeRing.SetPosition(i, point);
         }
     }
@@ -116,16 +152,27 @@ public class DefenderPlacer : MonoBehaviour
 
     private void TryPlaceDefender()
     {
-        if (Camera.main == null) return;
+        if (Camera.main == null || Selected == null) return;
 
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
         if (!Physics.Raycast(ray, out RaycastHit hit, 200f)) return;
         if (!TryFindNearbySpot(hit.point, out Vector3 spot)) return;
-        if (!gameManager.TrySpendResources(defenderCost)) return;
+        if (!gameManager.TrySpendResources(Selected.cost)) return;
 
         ClearHighlight();
         terrainGenerator.BuildableSpots.Remove(spot);
-        Instantiate(defenderPrefab, spot, Quaternion.identity);
+
+        Defender placed = Instantiate(Selected, spot, Quaternion.identity);
+        placedSpots[placed] = spot;
+    }
+
+    // When a defender is destroyed its spot opens up again so the player can rebuild.
+    private void FreeSpot(Defender defender)
+    {
+        if (!placedSpots.TryGetValue(defender, out Vector3 spot)) return;
+
+        placedSpots.Remove(defender);
+        terrainGenerator.BuildableSpots.Add(spot);
     }
 
     private bool TryFindNearbySpot(Vector3 point, out Vector3 result)

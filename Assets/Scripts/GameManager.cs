@@ -1,7 +1,7 @@
-// GameManager.cs
 using System;
 using UnityEngine;
 
+/// <summary>Runs the main game loop.</summary>
 public class GameManager : MonoBehaviour
 {
     [Header("References")]
@@ -11,9 +11,9 @@ public class GameManager : MonoBehaviour
 
     [Header("Economy")]
     public int startingResources = 100;
-    public int resourcesPerKill = 15;
 
     public static event Action<int> OnResourcesChanged;
+    public static event Action<bool> OnPauseChanged;
     public static event Action OnGameOver;
     public static event Action OnGameRestarted;
 
@@ -22,6 +22,8 @@ public class GameManager : MonoBehaviour
     private bool gameOver;
 
     public bool IsGameOver => gameOver;
+    public bool IsPaused => Time.timeScale == 0f && !gameOver;
+    public int CurrentResources => resources;
 
     private void Start()
     {
@@ -40,10 +42,17 @@ public class GameManager : MonoBehaviour
         Enemy.OnEnemyKilled -= HandleEnemyKilled;
     }
 
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.P) || Input.GetKeyDown(KeyCode.Escape))
+            TogglePause();
+    }
+
     public void StartNewGame()
     {
         gameOver = false;
         Time.timeScale = 1f;
+        OnPauseChanged?.Invoke(false);
 
         if (spawnedTower != null)
             Destroy(spawnedTower);
@@ -82,7 +91,7 @@ public class GameManager : MonoBehaviour
 
     private void HandleEnemyKilled(Enemy enemy)
     {
-        resources += resourcesPerKill;
+        resources += enemy.reward;
         OnResourcesChanged?.Invoke(resources);
     }
 
@@ -99,6 +108,8 @@ public class GameManager : MonoBehaviour
     public void TogglePause()
     {
         if (gameOver) return;
+
         Time.timeScale = Time.timeScale > 0f ? 0f : 1f;
+        OnPauseChanged?.Invoke(IsPaused);
     }
 }
